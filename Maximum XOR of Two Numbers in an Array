@@ -1,0 +1,57 @@
+#include <stdlib.h>
+#define HASH_SIZE 500009
+typedef struct {
+    int key;
+    int occupied;
+} HashEntry;
+static void insertHash(HashEntry* table, int key, int* history, int* historySize) {
+    unsigned int hash = (unsigned int)key % HASH_SIZE;
+    while (table[hash].occupied) {
+        if (table[hash].key == key) return;
+        hash = (hash + 1) % HASH_SIZE;
+    }
+    table[hash].key = key;
+    table[hash].occupied = 1;
+    history[(*historySize)++] = hash;
+}
+static int searchHash(HashEntry* table, int key) {
+    unsigned int hash = (unsigned int)key % HASH_SIZE;
+    while (table[hash].occupied) {
+        if (table[hash].key == key) return 1;
+        hash = (hash + 1) % HASH_SIZE;
+    }
+    return 0;
+}
+int findMaximumXOR(int* nums, int numsSize) {
+    int max_xor = 0;
+    int mask = 0;
+    HashEntry* table = (HashEntry*)calloc(HASH_SIZE, sizeof(HashEntry));
+    if (!table) return 0;
+    int* history = (int*)malloc(numsSize * sizeof(int));
+    if (!history) {
+        free(table);
+        return 0;
+    }
+    for (int i = 30; i >= 0; i--) {
+        mask |= (1 << i);
+        int historySize = 0;
+        for (int j = 0; j < numsSize; j++) {
+            insertHash(table, nums[j] & mask, history, &historySize);
+        }
+        int greedy_candidate = max_xor | (1 << i); 
+        for (int j = 0; j < numsSize; j++) {
+            int prefix = nums[j] & mask;
+            if (searchHash(table, prefix ^ greedy_candidate)) {
+                max_xor = greedy_candidate;
+                break;
+            }
+        }
+        for (int j = 0; j < historySize; j++) {
+            table[history[j]].occupied = 0;
+        }
+    }
+
+    free(history);
+    free(table);
+    return max_xor;
+}
