@@ -1,0 +1,75 @@
+#include <stdlib.h>
+#include <string.h>
+
+#define SIZE 131071
+
+typedef struct Node {
+    int key;
+    struct Node *next;
+} Node;
+
+int subarrayBitwiseORs(int* arr, int arrSize) {
+
+    Node *table[SIZE];
+    memset(table, 0, sizeof(table));
+
+    int prev[32], prevSize = 0;
+    int answer = 0;
+
+    for (int i = 0; i < arrSize; i++) {
+
+        int curr[32];
+        int currSize = 0;
+
+        curr[currSize++] = arr[i];
+
+      
+        for (int j = 0; j < prevSize; j++) {
+
+            int value = prev[j] | arr[i];
+
+            int found = 0;
+
+            for (int k = 0; k < currSize; k++) {
+                if (curr[k] == value) {
+                    found = 1;
+                    break;
+                }
+            }
+
+            if (!found)
+                curr[currSize++] = value;
+        }
+
+        prevSize = currSize;
+
+        for (int j = 0; j < currSize; j++) {
+
+            prev[j] = curr[j];
+
+           
+            int h = (curr[j] & 0x7fffffff) % SIZE;
+
+            Node *p = table[h];
+            int found = 0;
+
+            while (p != NULL) {
+                if (p->key == curr[j]) {
+                    found = 1;
+                    break;
+                }
+                p = p->next;
+            }
+
+            if (!found) {
+                Node *newNode = (Node *)malloc(sizeof(Node));
+                newNode->key = curr[j];
+                newNode->next = table[h];
+                table[h] = newNode;
+                answer++;
+            }
+        }
+    }
+
+    return answer;
+}
