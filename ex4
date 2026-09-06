@@ -1,0 +1,307 @@
+1.int numBusesToDestination(int** routes, int routesSize, int* routesColSize, int source, int target) {
+    if (source == target)
+        return 0;
+
+    int maxStop = 1000000;
+
+    int** stopRoutes = malloc((maxStop + 1) * sizeof(int*));
+    int* stopCount = calloc(maxStop + 1, sizeof(int));
+
+    for (int i = 0; i <= maxStop; i++)
+        stopRoutes[i] = NULL;
+
+    for (int i = 0; i < routesSize; i++) {
+        for (int j = 0; j < routesColSize[i]; j++) {
+            int stop = routes[i][j];
+
+            stopRoutes[stop] = realloc(
+                stopRoutes[stop],
+                (stopCount[stop] + 1) * sizeof(int)
+            );
+
+            stopRoutes[stop][stopCount[stop]++] = i;
+        }
+    }
+
+    char* visitedStop = calloc(maxStop + 1, sizeof(char));
+    char* visitedRoute = calloc(routesSize, sizeof(char));
+
+    int* queue = malloc((maxStop + 1) * sizeof(int));
+
+    int front = 0;
+    int rear = 0;
+    int buses = 0;
+
+    queue[rear++] = source;
+    visitedStop[source] = 1;
+
+    while (front < rear) {
+        int size = rear - front;
+        buses++;
+
+        while (size--) {
+            int stop = queue[front++];
+
+            for (int i = 0; i < stopCount[stop]; i++) {
+                int route = stopRoutes[stop][i];
+
+                if (visitedRoute[route])
+                    continue;
+
+                visitedRoute[route] = 1;
+
+                for (int j = 0; j < routesColSize[route]; j++) {
+                    int next = routes[route][j];
+
+                    if (next == target) {
+                        for (int k = 0; k <= maxStop; k++)
+                            free(stopRoutes[k]);
+
+                        free(stopRoutes);
+                        free(stopCount);
+                        free(visitedStop);
+                        free(visitedRoute);
+                        free(queue);
+
+                        return buses;
+                    }
+
+                    if (!visitedStop[next]) {
+                        visitedStop[next] = 1;
+                        queue[rear++] = next;
+                    }
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i <= maxStop; i++)
+        free(stopRoutes[i]);
+
+    free(stopRoutes);
+    free(stopCount);
+    free(visitedStop);
+    free(visitedRoute);
+    free(queue);
+
+    return -1;
+}
+
+2.int minReorder(int n, int** connections, int connectionsSize, int* connectionsColSize) {
+    int** graph = malloc(n * sizeof(int*));
+    int* count = calloc(n, sizeof(int));
+
+    for (int i = 0; i < n; i++)
+        graph[i] = NULL;
+
+    for (int i = 0; i < connectionsSize; i++) {
+        int u = connections[i][0];
+        int v = connections[i][1];
+
+        graph[u] = realloc(graph[u], (count[u] + 1) * 2 * sizeof(int));
+        graph[u][count[u] * 2] = v;
+        graph[u][count[u] * 2 + 1] = 1;
+        count[u]++;
+
+        graph[v] = realloc(graph[v], (count[v] + 1) * 2 * sizeof(int));
+        graph[v][count[v] * 2] = u;
+        graph[v][count[v] * 2 + 1] = 0;
+        count[v]++;
+    }
+
+    int* visited = calloc(n, sizeof(int));
+
+    int dfs(int node) {
+        visited[node] = 1;
+
+        int result = 0;
+
+        for (int i = 0; i < count[node]; i++) {
+            int next = graph[node][i * 2];
+            int cost = graph[node][i * 2 + 1];
+
+            if (!visited[next]) {
+                result += cost;
+                result += dfs(next);
+            }
+        }
+
+        return result;
+    }
+
+    int answer = dfs(0);
+
+    for (int i = 0; i < n; i++)
+        free(graph[i]);
+
+    free(graph);
+    free(count);
+    free(visited);
+
+    return answer;
+}
+
+3.int networkDelayTime(int** times, int timesSize, int* timesColSize, int n, int k) {
+    int graph[n + 1][n + 1];
+
+    for (int i = 1; i <= n; i++) {
+        for (int j = 1; j <= n; j++) {
+            graph[i][j] = 1000000000;
+        }
+    }
+
+    for (int i = 0; i < timesSize; i++) {
+        int u = times[i][0];
+        int v = times[i][1];
+        int w = times[i][2];
+
+        graph[u][v] = w;
+    }
+
+    int dist[n + 1];
+    int visited[n + 1];
+
+    for (int i = 1; i <= n; i++) {
+        dist[i] = 1000000000;
+        visited[i] = 0;
+    }
+
+    dist[k] = 0;
+
+    for (int count = 1; count <= n; count++) {
+        int u = -1;
+        int min = 1000000000;
+
+        for (int i = 1; i <= n; i++) {
+            if (!visited[i] && dist[i] < min) {
+                min = dist[i];
+                u = i;
+            }
+        }
+
+        if (u == -1)
+            break;
+
+        visited[u] = 1;
+
+        for (int v = 1; v <= n; v++) {
+            if (!visited[v] &&
+                graph[u][v] != 1000000000 &&
+                dist[u] + graph[u][v] < dist[v]) {
+
+                dist[v] = dist[u] + graph[u][v];
+            }
+        }
+    }
+
+    int answer = 0;
+
+    for (int i = 1; i <= n; i++) {
+        if (dist[i] == 1000000000)
+            return -1;
+
+        if (dist[i] > answer)
+            answer = dist[i];
+    }
+
+    return answer;
+}
+
+4.int minimumEffortPath(int** heights, int heightsSize, int* heightsColSize) {
+    int rows = heightsSize;
+    int cols = heightsColSize[0];
+
+    int dist[rows][cols];
+    int visited[rows][cols];
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            dist[i][j] = 1000000000;
+            visited[i][j] = 0;
+        }
+    }
+
+    dist[0][0] = 0;
+
+    int dr[] = {-1, 1, 0, 0};
+    int dc[] = {0, 0, -1, 1};
+
+    for (int count = 0; count < rows * cols; count++) {
+        int r = -1;
+        int c = -1;
+        int min = 1000000000;
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (!visited[i][j] && dist[i][j] < min) {
+                    min = dist[i][j];
+                    r = i;
+                    c = j;
+                }
+            }
+        }
+
+        if (r == -1)
+            break;
+
+        if (r == rows - 1 && c == cols - 1)
+            return dist[r][c];
+
+        visited[r][c] = 1;
+
+        for (int d = 0; d < 4; d++) {
+            int nr = r + dr[d];
+            int nc = c + dc[d];
+
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols &&
+                !visited[nr][nc]) {
+
+                int difference = abs(heights[r][c] - heights[nr][nc]);
+
+                int effort = difference > dist[r][c]
+                              ? difference
+                              : dist[r][c];
+
+                if (effort < dist[nr][nc])
+                    dist[nr][nc] = effort;
+            }
+        }
+    }
+
+    return dist[rows - 1][cols - 1];
+}
+
+5.int findCheapestPrice(int n, int** flights, int flightsSize, int* flightsColSize, int src, int dst, int k) {
+    int dist[n];
+
+    for (int i = 0; i < n; i++)
+        dist[i] = 1000000000;
+
+    dist[src] = 0;
+
+    for (int i = 0; i <= k; i++) {
+        int temp[n];
+
+        for (int j = 0; j < n; j++)
+            temp[j] = dist[j];
+
+        for (int j = 0; j < flightsSize; j++) {
+            int from = flights[j][0];
+            int to = flights[j][1];
+            int price = flights[j][2];
+
+            if (dist[from] != 1000000000 &&
+                dist[from] + price < temp[to]) {
+                temp[to] = dist[from] + price;
+            }
+        }
+
+        for (int j = 0; j < n; j++)
+            dist[j] = temp[j];
+    }
+
+    if (dist[dst] == 1000000000)
+        return -1;
+
+    return dist[dst];
+}
