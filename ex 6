@@ -1,0 +1,296 @@
+1.Echo server usimg TCP
+[24bcs090@mepcolinux ex5]$cat server.c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+int main()
+{
+    char p[1024];
+    int sockid, clientid;
+    struct sockaddr_in server, client;
+    socklen_t client_len;
+
+    sockid = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockid < 0)
+    {
+        perror("Socket failed");
+        return 1;
+    }
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons(5100);
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (bind(sockid, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        perror("Bind failed");
+        close(sockid);
+        return 1;
+    }
+
+    printf("Server IP   : 127.0.0.1\n");
+    printf("Server Port : 5100\n");
+    printf("Bind successful\n");
+
+    if (listen(sockid, 5) < 0)
+    {
+        perror("Listen failed");
+        close(sockid);
+        return 1;
+    }
+
+    printf("Waiting for client\n");
+
+    client_len = sizeof(client);
+
+    clientid = accept(sockid, (struct sockaddr *)&client, &client_len);
+
+    if (clientid < 0)
+    {
+        perror("Accept Failed");
+        close(sockid);
+        return 1;
+    }
+
+    printf("Client Connected\n");
+
+    while (1)
+    {
+        int n;
+
+        memset(p, 0, sizeof(p));
+
+        n = recv(clientid, p, sizeof(p) - 1, 0);
+
+        if (n <= 0)
+        {
+            printf("Client Disconnected\n");
+            break;
+        }
+
+        p[n] = '\0';
+
+        printf("Client: %s\n", p);
+
+        if (strcmp(p, "busy") == 0)
+        {
+            printf("Client was busy\n");
+            break;
+        }
+
+        send(clientid, p, strlen(p), 0);
+    }
+
+    close(clientid);
+    close(sockid);
+
+    return 0;
+}
+
+[24bcs090@mepcolinux ex5]$cat client.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+int main()
+{
+    char p[1024];
+    char reply[1024];
+    int sockid;
+    struct sockaddr_in server;
+
+    sockid = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockid < 0)
+    {
+        perror("Socket failed");
+        return 1;
+    }
+
+    printf("Socket successful\n");
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons(5100);
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    printf("Server IP   : 127.0.0.1\n");
+    printf("Server Port : 5100\n");
+
+    if (connect(sockid, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        perror("Connection failed");
+        close(sockid);
+        return 1;
+    }
+
+    printf("Connected to server successfully!\n");
+
+    while (1)
+    {
+        printf("Enter the message: ");
+
+        fgets(p, sizeof(p), stdin);
+        p[strcspn(p, "\n")] = '\0';
+
+        if (strlen(p) == 0)
+            continue;
+
+        send(sockid, p, strlen(p), 0);
+
+        if (strcmp(p, "busy") == 0)
+        {
+            printf("Exiting client...\n");
+            break;
+        }
+
+        memset(reply, 0, sizeof(reply));
+
+        int n = recv(sockid, reply, sizeof(reply) - 1, 0);
+
+        if (n > 0)
+        {
+            reply[n] = '\0';
+            printf("Server: %s\n", reply);
+        }
+    }
+
+    close(sockid);
+
+    return 0;
+}
+
+[24bcs090@mepcolinux ex5]$./server
+Server IP   : 127.0.0.1
+Server Port : 5100
+Bind successful
+Waiting for client
+Client Connected
+Client: Hello
+Client: I  am Rubika
+Client: bye
+Client: busy
+Client was busy
+
+[24bcs090@mepcolinux ex5]$./client
+Socket successful
+Server IP   : 127.0.0.1
+Server Port : 5100
+Connected to server successfully!
+Enter the message: Hello
+Server: Hello
+Enter the message: I  am Rubika
+Server: I  am Rubika
+Enter the message: bye
+Server: bye
+Enter the message: busy
+Exiting client...
+2.Implement palindrome checking server for a tcp client in c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define PORT 8080
+#define BUFFER_SIZE 1024
+
+bool is_palindrome(char *str) {
+    int left = 0;
+    int right = strlen(str) - 1;
+
+    while (left < right) {
+        if (str[left] != str[right]) {
+            return false;
+        }
+        left++;
+        right--;
+    }
+    return true;
+}
+
+int main() {
+    int server_fd, client_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+    char buffer[BUFFER_SIZE];
+
+  
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+   
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY; // Accept connections from any IP
+    server_addr.sin_port = htons(PORT);
+
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Bind failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+  
+    if (listen(server_fd, 3) < 0) {
+        perror("Listen failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server is listening on port %d...\n", PORT);
+
+   
+    while (1) {
+        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
+        if (client_fd < 0) {
+            perror("Accept failed");
+            continue;
+        }
+
+        printf("Client connected.\n");
+
+   
+        memset(buffer, 0, BUFFER_SIZE);
+        int bytes_received = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+        
+        if (bytes_received > 0) {
+           
+            buffer[strcspn(buffer, "\r\n")] = '\0';
+            printf("Received from client: '%s'\n", buffer);
+
+            
+            int result_flag; 
+            if (is_palindrome(buffer)) {
+                result_flag = 1; 
+                printf("Result: It is a palindrome.\n");
+            } else {
+                result_flag = 0;
+                printf("Result: It is NOT a palindrome.\n");
+            }
+
+           
+            send(client_fd, &result_flag, sizeof(result_flag), 0);
+        }
+
+        close(client_fd);
+        printf("Client disconnected.\n\n");
+    }
+
+    close(server_fd);
+    return 0;
+}
